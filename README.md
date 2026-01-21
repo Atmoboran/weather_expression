@@ -36,6 +36,19 @@ pip install uv
 cd music_video_from_weather
 uv sync
 ```
+You also need to have ffmpeg installed.
+On Windows:
+```bash
+winget install ffmpeg
+```
+On Mac:
+```bash
+brew install ffmpeg
+```
+On Linux:
+```bash
+sudo apt install ffmpeg
+```
 
 All packages and dependencies should be resolved now. If not simply add the required package using
 
