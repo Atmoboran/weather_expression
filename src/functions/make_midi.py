@@ -62,7 +62,8 @@ def produce_midi_file(data, bpm, vel_min, vel_max, instruments):
             pressure_gradient = 0
 
         # Map the temperature to a MIDI note number
-        note_index = round(map_value(temp, -10, 25, 0, len(note_midis) - 1))
+        note_index = round(map_value(temp, min_temp, max_temp, 0, len(note_midis) - 1))
+        note_index = max(0, min(len(note_midis) - 1, note_index))
         midi_data = note_midis[note_index]
         
         # Map the wind speed to a velocity value

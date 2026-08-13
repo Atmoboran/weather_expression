@@ -24,6 +24,7 @@ def create_music_video_from_weather():
     bpm = 420  # beats per minute for MIDI # choose BPM that can be divided by 60 !
     fps = int(bpm / 60)
 
+
     # Choose your instruments = ['Melody', 'Bass', 'Harmony', 'Drums', 'Rain Sounds']
     instruments = ['alto sax', 'tuba', 'accordion', 'synth drum', 'fx 1 (rain)']
 
