@@ -1,5 +1,30 @@
 import sys
 
+import pandas as pd
+
+# DWD marks missing measurements with -999. Any value this low is a gap, not a reading.
+MISSING_THRESHOLD = -900
+
+# Measurements the sonification and the plots read. A gap in any of them makes the
+# whole row unusable.
+REQUIRED_COLUMNS = ['TT_10', 'FF_10', 'PP_10', 'RWS_10']
+
+#################################################################################
+# --- Function to drop rows where DWD reported no measurement ---
+def drop_missing_rows(data, columns=REQUIRED_COLUMNS):
+    """
+    Removes rows carrying the DWD missing-value sentinel in any required column.
+
+    Clamping these instead of dropping them turns a gap in the record into wrong
+    output: a missing temperature becomes the lowest note of the scale, a missing
+    wind speed becomes the loudest possible velocity, and a missing pressure drags
+    the plotted y-axis down to -999.
+    """
+    usable = pd.Series(True, index=data.index)
+    for column in columns:
+        usable &= data[column] > MISSING_THRESHOLD
+    return data[usable]
+
 #################################################################################
 # --- Function to get the season based on the date ---
 def get_season(date_str):

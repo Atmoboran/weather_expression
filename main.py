@@ -1,7 +1,6 @@
 # --- USER CONFIGURATION ---
 from pathlib import Path
 import pandas as pd
-import shutil
 import os
 from src.functions.video_funcs import *
 from src.packages.my_midiutil import MIDIFile
@@ -17,12 +16,13 @@ def create_music_video_from_weather():
     # --- USER CONFIGURATION ---
     # --- Please specify the settings you want ---
 
-    station_id =  "01420"      # Choose the weather station you want to use, e.g. "07341", "01420", ... 
+    station_id =  "01420"      # Choose the weather statdion you want to use, e.g. "07341", "01420", ... 
     mode       = "now"         # You can eather get a long run with "historic" or todays data with "now"
     station    = "Offenbach-W" # Choose the webcam station you want to use, e.g. "Offenbach-O", "Offenbach-W", ...
 
     bpm = 420  # beats per minute for MIDI # choose BPM that can be divided by 60 !
     fps = int(bpm / 60)
+
 
     # Choose your instruments = ['Melody', 'Bass', 'Harmony', 'Drums', 'Rain Sounds']
     instruments = ['alto sax', 'tuba', 'accordion', 'synth drum', 'fx 1 (rain)']
@@ -36,10 +36,12 @@ def create_music_video_from_weather():
 
     # Set the start and end time for the video if you chose "historic" mode
     if mode == 'historic':
-        # only works for 01420 + Offenbach-O or Offenbach-W 
+        # only works for 01420 + Offenbach-O or Offenbach-W
         # between 2025-03-01 09:30 and 2025-03-07 14:00
-        start_datetime = pd.to_datetime("2025-03-01 09:30") 
+        start_datetime = pd.to_datetime("2025-03-01 09:30")
         end_datetime = pd.to_datetime("2025-03-05 09:30")
+    elif mode != 'now':
+        raise ValueError(f"Unsupported mode '{mode}', expected 'now' or 'historic'.")
 
 
 # ----- CONFIGURATION END ---
@@ -47,9 +49,13 @@ def create_music_video_from_weather():
     # --- PATH SETUP ---
     BASE_DIR = Path.cwd()
     WEATHER_DATA_DIR = BASE_DIR / "weatherdata" / f"{station_id}_{mode}"
-    if mode == 'now':
-        shutil.rmtree(WEATHER_DATA_DIR, ignore_errors=True)
     WEATHER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    if mode == 'now':
+        # Clear the station product and merged files so they are re-fetched, but leave
+        # webcam_data/ in place: those images never change once published, and wiping
+        # them forced a full ~430-image re-download on every run.
+        for stale in list(WEATHER_DATA_DIR.glob("produkt_*")) + list(WEATHER_DATA_DIR.glob("*merged_*")):
+            stale.unlink()
     WEBCAM_DATA_DIR = WEATHER_DATA_DIR / f"webcam_data/{station}"
     AUDIO_OUTPUT_DIR = BASE_DIR / "assets/audio"
     VIDEO_OUTPUT_DIR = BASE_DIR / "assets/video"
@@ -61,15 +67,17 @@ def create_music_video_from_weather():
 
     if mode == 'now':
         # --- DOWNLOAD WEBCAM DATA ---
-        start_datetime, end_datetime = download_webcam_images(station,resolution,WEBCAM_DATA_DIR)
-        
+        first_image, last_image = download_webcam_images(station, resolution, WEBCAM_DATA_DIR)
+        print(f"Webcam images on disk span {first_image} to {last_image}")
+
+
     # --- DOWNLOAD WEATHER DATA ---
     download_station_data(station_id, WEATHER_DATA_DIR, 'now')
     download_station_data(station_id, WEATHER_DATA_DIR, 'recent')
 
     # --- MERGE WEATHER DATA ---
     print("Merging latest station data...")
-    df_merged, merged_file_path = merge_station_data(station_id,BASE_DIR, mode)
+    df_merged, merged_file_path = merge_station_data(station_id, WEATHER_DATA_DIR)
     print("Merged file path: ", merged_file_path)
 
     # --- LOAD IMAGE DATA ---
@@ -82,8 +90,10 @@ def create_music_video_from_weather():
     frames = len(image_df)
 
     # --- GENERATE WEATHER VIDEO ---
-    start_str = start_datetime.strftime('%Y-%m-%d_%H-%M')
-    end_str = end_datetime.strftime('%Y-%m-%d_%H-%M')
+    # Name the outputs after the range actually rendered. The webcam cache on disk can
+    # reach further back than the frames that survived pairing with weather data.
+    start_str = image_df['DateTime'].min().strftime('%Y-%m-%d_%H-%M')
+    end_str = image_df['DateTime'].max().strftime('%Y-%m-%d_%H-%M')
     output_filename = VIDEO_OUTPUT_DIR / f"{start_str}_to_{end_str}_animation.mp4"
     print("Generating weather animation video...")
     generate_weather_animation(station, image_df, full_weather_data, WEBCAM_DATA_DIR, output_filename,frames, fps)

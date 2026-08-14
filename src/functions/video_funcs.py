@@ -4,8 +4,9 @@ import matplotlib.animation as animation
 import matplotlib.dates as mdates
 from PIL import Image
 import pandas as pd
-from IPython.display import display, HTML
 from matplotlib.animation import FFMpegWriter
+
+from src.functions.soni_functions import drop_missing_rows
 
 #############################################################################################
 # --- Function to load weather and image data for a given time range in 'historic' mode ---
@@ -33,18 +34,23 @@ def load_weather_and_image_data_historic(base_path, df, start_datetime, end_date
     else:
         print(f"Successfully loaded {len(image_df)} images.")
     
-    # Load weather data
+    # Load weather data, discarding rows where DWD reported no measurement
     full_weather_data = df[(df['MESS_DATUM'] >= start_datetime) & (df['MESS_DATUM'] <= end_datetime)]
-    
+    full_weather_data = drop_missing_rows(full_weather_data)
+
     if full_weather_data.empty:
-        print("Warning: No weather data found for the specified time range.")
-    else:
-        print(f"Successfully loaded {len(full_weather_data)} weather data points.")
-    
+        raise ValueError(
+            f"No usable weather data between {start_datetime} and {end_datetime}."
+        )
+    print(f"Successfully loaded {len(full_weather_data)} weather data points.")
+
     if len(image_df) != len(full_weather_data):
-        print('Not enough webcam images available at the specified time span!')
-        return
-    
+        raise ValueError(
+            f"Webcam images ({len(image_df)}) and weather rows ({len(full_weather_data)}) "
+            f"do not line up between {start_datetime} and {end_datetime}. "
+            "Not enough webcam images are available for the specified time span."
+        )
+
     return image_df, full_weather_data
 
 #################################################################################################
@@ -61,10 +67,17 @@ def load_weather_and_image_data_now(base_path, full_weather_data, frames=5):
                 date_time = parts[1] + " " + parts[2].replace(".jpg", "")
                 existing_images.append(date_time)
 
+    if not existing_images:
+        raise FileNotFoundError(f"No webcam images (*.jpg) found in {base_path}.")
+
     # === Create image_df ===
     image_df = pd.DataFrame(existing_images, columns=['DateTime'])
     image_df['DateTime'] = pd.to_datetime(image_df['DateTime'], format='%Y%m%d %H%M')
     image_df = image_df.sort_values('DateTime').reset_index(drop=True)
+
+    # Discard weather rows where DWD reported no measurement before pairing them with
+    # images, so both sides stay the same length.
+    full_weather_data = drop_missing_rows(full_weather_data)
 
     print("🖼️ Available webcam times:")
 
@@ -81,8 +94,11 @@ def load_weather_and_image_data_now(base_path, full_weather_data, frames=5):
     common_times = sorted(set(weather_times) & set(image_times))
 
     if not common_times:
-        print("⚠️ No overlapping datetimes found between images and weather data.")
-        return None, None, None, None
+        raise ValueError(
+            "No overlapping datetimes between webcam images "
+            f"({start_datetime_webcam} to {end_datetime_webcam}) and weather data "
+            f"({weather_times.min()} to {weather_times.max()})."
+        )
 
     # === Filter both datasets to keep only common timestamps ===
     image_df = image_df[image_df['DateTime'].isin(common_times)].reset_index(drop=True)
@@ -108,9 +124,7 @@ def generate_weather_animation(station_name, image_df, full_weather_data, base_p
     """
     image_df = image_df.sort_values(by='DateTime').reset_index(drop=True)
     full_weather_data = full_weather_data.sort_values(by='MESS_DATUM').reset_index(drop=True)
-    # Increase animation embedding limit
-    plt.rcParams['animation.embed_limit'] = 100
-    
+
     """Plots the weather animation."""
     # Stabilize y-axis limits
     pressure_ylim = [full_weather_data['PP_10'].min() - 1, full_weather_data['PP_10'].max() + 1]
@@ -147,7 +161,7 @@ def generate_weather_animation(station_name, image_df, full_weather_data, base_p
         subset_weather_data['MESS_DATUM'], subset_weather_data['TT_10'],
         label="Temperature (°C)", color='orange', linewidth=2
     )
-    ax_temperature.set_ylim(temperature_ylim[0])
+    ax_temperature.set_ylim(temperature_ylim)
     ax_temperature.set_ylabel("Temperature (°C)")
 
     ax_precipitation = ax_temperature.twinx()
@@ -189,11 +203,13 @@ def generate_weather_animation(station_name, image_df, full_weather_data, base_p
         image_path = os.path.join(base_path, f"{station_name}_{date_str}_{time_str}.jpg")
 
         if os.path.exists(image_path):
-            img = Image.open(image_path)
-            ax_webcam.imshow(img)
-            ax_webcam.axis('off')
-            ax_webcam.set_xlim(0, img.size[0])  # Set x-axis limits to image width
-            ax_webcam.set_ylim(img.size[1], 0)  # Set y-axis limits to image height (inverted for correct orientation)
+            # Context-managed so the file handle is released each frame rather than
+            # leaking one per image for the length of the animation.
+            with Image.open(image_path) as img:
+                ax_webcam.imshow(img)
+                ax_webcam.axis('off')
+                ax_webcam.set_xlim(0, img.size[0])  # Set x-axis limits to image width
+                ax_webcam.set_ylim(img.size[1], 0)  # Set y-axis limits to image height (inverted for correct orientation)
 
         # Filter weather data up to current time
         weather_data = subset_weather_data[subset_weather_data['MESS_DATUM'] <= current_time]
@@ -214,15 +230,23 @@ def generate_weather_animation(station_name, image_df, full_weather_data, base_p
     ani = animation.FuncAnimation(fig, update_plot, frames=frames, interval=interval, blit=False)
     ani.save(output_file_name, writer=writer, dpi=100)
 
-    display(HTML(ani.to_jshtml()))
+    # The animation is deliberately not re-rendered with to_jshtml() here. That call
+    # redraws every frame a second time and base64-embeds the result, costing more
+    # than writing the video itself, and the returned HTML is unusable outside a
+    # notebook. Release the figure instead.
+    plt.close(fig)
 
 #################################################################################################
 # --- Function to read station data from local folder ---
-def read_station_data(file_path):
+def read_station_data(file_path, usecols=None):
+    """
+    Reads a DWD product file. Pass `usecols` to load only the columns actually used
+    downstream instead of the full record.
+    """
     print(f"Reading data from {file_path}...")
 
     # Read data normally (let pandas infer types)
-    df = pd.read_csv(file_path, sep=';', skipinitialspace=True)
+    df = pd.read_csv(file_path, sep=';', skipinitialspace=True, usecols=usecols)
 
     # Manually parse the datetime column
     df['MESS_DATUM'] = pd.to_datetime(df['MESS_DATUM'], format="%Y%m%d%H%M", errors='coerce')
