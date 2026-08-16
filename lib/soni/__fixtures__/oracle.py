@@ -21,8 +21,34 @@ from pathlib import Path
 
 import pandas as pd
 
-REPO = Path(__file__).parent / "music_video_from_weather"
-sys.path.insert(0, str(REPO))
+def find_python_project() -> Path:
+    """
+    Locates the original Python project.
+
+    Walks up from this file looking for `src/functions/make_midi.py`, which finds
+    the repository root when this lives at `web/lib/soni/__fixtures__/` inside it.
+    Falls back to a sibling checkout, for the case where the web app has been
+    split out into a repository of its own.
+    """
+    here = Path(__file__).resolve()
+
+    for parent in here.parents:
+        if (parent / "src" / "functions" / "make_midi.py").exists():
+            return parent
+
+    for name in ("music_video_from_weather", "weather_expression"):
+        sibling = here.parent / name
+        if (sibling / "src" / "functions" / "make_midi.py").exists():
+            return sibling
+
+    raise SystemExit(
+        "Could not find the Python project (no src/functions/make_midi.py in any "
+        f"parent of {here.parent}, and no sibling checkout). Run this from inside "
+        "the weather_expression repository, or clone it next to this script."
+    )
+
+
+sys.path.insert(0, str(find_python_project()))
 
 from src.functions import make_midi  # noqa: E402
 
