@@ -36,19 +36,11 @@ pip install uv
 cd music_video_from_weather
 uv sync
 ```
-You also need to have ffmpeg installed.
-On Windows:
-```bash
-winget install ffmpeg
-```
-On Mac:
-```bash
-brew install ffmpeg
-```
-On Linux:
-```bash
-sudo apt install ffmpeg
-```
+ffmpeg is required but does not need to be installed separately: the `imageio-ffmpeg`
+dependency bundles a prebuilt ffmpeg binary for Windows, macOS, and Linux, and the
+project points matplotlib/ffmpeg subprocess calls at it automatically. This also means
+the app works without admin/install rights (e.g. on shared/HPC systems where you can't
+install system packages).
 
 All packages and dependencies should be resolved now. If not simply add the required package using
 
