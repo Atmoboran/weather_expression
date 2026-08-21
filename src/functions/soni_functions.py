@@ -7,7 +7,7 @@ MISSING_THRESHOLD = -900
 
 # Measurements the sonification and the plots read. A gap in any of them makes the
 # whole row unusable.
-REQUIRED_COLUMNS = ['TT_10', 'FF_10', 'PP_10', 'RWS_10']
+REQUIRED_COLUMNS = ['TT_10', 'FF_10', 'PP_10', 'RWS_10', 'GS_10']
 
 #################################################################################
 # --- Function to drop rows where DWD reported no measurement ---

@@ -24,8 +24,8 @@ def create_music_video_from_weather():
     fps = int(bpm / 60)
 
 
-    # Choose your instruments = ['Melody', 'Bass', 'Harmony', 'Drums', 'Rain Sounds']
-    instruments = ['alto sax', 'tuba', 'accordion', 'synth drum', 'fx 1 (rain)']
+    # Choose your instruments = ['Melody', 'Bass', 'Harmony', 'Drums', 'Rain Sounds', 'Sun']
+    instruments = ['alto sax', 'tuba', 'accordion', 'synth drum', 'fx 1 (rain)', 'celesta']
 
     # Set the minimum and maximum velocity of the sound
     vel_min = 30

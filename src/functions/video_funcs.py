@@ -136,10 +136,11 @@ def generate_weather_animation(station_name, image_df, full_weather_data, base_p
     temperature_ylim = [full_weather_data['TT_10'].min() - 1, full_weather_data['TT_10'].max() + 1]
     precipitation_ylim = [0, full_weather_data['RWS_10'].max() + 1]
     wind_ylim = [full_weather_data['FF_10'].min() - 1, full_weather_data['FF_10'].max() + 1]
+    solar_ylim = [0, full_weather_data['GS_10'].max() + 1]
 
     # Initialize the figure
-    fig, (ax_webcam, ax_pressure, ax_temperature) = plt.subplots(
-        3, 1, figsize=(10, 12), gridspec_kw={'height_ratios': [5, 2, 2]}
+    fig, (ax_webcam, ax_pressure, ax_temperature, ax_solar) = plt.subplots(
+        4, 1, figsize=(10, 14), gridspec_kw={'height_ratios': [5, 2, 2, 2]}
     )
     plt.subplots_adjust(hspace=0.3)
 
@@ -177,24 +178,37 @@ def generate_weather_animation(station_name, image_df, full_weather_data, base_p
     ax_precipitation.set_ylim(precipitation_ylim)
     ax_precipitation.set_ylabel("Precipitation (mm)")
 
+    # Plot solar radiation in third subplot
+    ax_solar.plot(
+        subset_weather_data['MESS_DATUM'], subset_weather_data['GS_10'],
+        label="Solar radiation (J/cm²)", color='gold', linewidth=2
+    )
+    ax_solar.set_ylim(solar_ylim)
+    ax_solar.set_ylabel("Solar radiation (J/cm²)")
+
     ax_pressure.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     ax_temperature.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+    ax_solar.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 
     # Initialize scatter points for red dots
     pressure_scatter = ax_pressure.scatter([], [], color='red', s=50)
     wind_scatter = ax_wind.scatter([], [], color='red', s=50, label='Current Time')
     temperature_scatter = ax_temperature.scatter([], [], color='red', s=50)
     precipitation_scatter = ax_precipitation.scatter([], [], color='red', s=50, label='Current Time')
+    solar_scatter = ax_solar.scatter([], [], color='red', s=50, label='Current Time')
 
     # Create a combined legend for pressure, precipitation, and current time
     lines_pressure, labels_pressure = ax_pressure.get_legend_handles_labels()
     lines_wind, labels_wind = ax_wind.get_legend_handles_labels()
     ax_pressure.legend(lines_pressure+ lines_wind , labels_pressure+labels_wind , loc='upper left')
-    
+
     # Create a combined legend for temperature, dewpoint, and current time
     lines_temperature, labels_temperature = ax_temperature.get_legend_handles_labels()
     lines_precipitation, labels_precipitation = ax_precipitation.get_legend_handles_labels()
     ax_temperature.legend(lines_temperature + lines_precipitation, labels_temperature + labels_precipitation , loc='upper left')
+
+    # Legend for solar radiation and current time
+    ax_solar.legend(loc='upper left')
 
     # Function to update the animation
     def update_plot(frame):
@@ -227,6 +241,7 @@ def generate_weather_animation(station_name, image_df, full_weather_data, base_p
             wind_scatter.set_offsets([[latest_time_num, latest_data_point['FF_10']]])
             temperature_scatter.set_offsets([[latest_time_num, latest_data_point['TT_10']]])
             precipitation_scatter.set_offsets([[latest_time_num, latest_data_point['RWS_10']]])
+            solar_scatter.set_offsets([[latest_time_num, latest_data_point['GS_10']]])
 
     # Create the animation
     interval = 500
