@@ -16,4 +16,6 @@ dependencies = [
     "ffmpeg>=1.4",
     "setuptools>=78.1.0",
     "scipy>=1.15.2",
+    "package-name>=0.1",
+    "imageio-ffmpeg>=0.6.0",
 ]

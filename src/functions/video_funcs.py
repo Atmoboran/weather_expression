@@ -1,4 +1,5 @@
 import os
+import imageio_ffmpeg
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.dates as mdates
@@ -7,6 +8,10 @@ import pandas as pd
 from matplotlib.animation import FFMpegWriter
 
 from src.functions.soni_functions import drop_missing_rows
+
+# matplotlib's FFMpegWriter looks for 'ffmpeg' on PATH by default; point it at the
+# binary bundled by imageio-ffmpeg instead, since ffmpeg isn't installed system-wide.
+plt.rcParams['animation.ffmpeg_path'] = imageio_ffmpeg.get_ffmpeg_exe()
 
 #############################################################################################
 # --- Function to load weather and image data for a given time range in 'historic' mode ---

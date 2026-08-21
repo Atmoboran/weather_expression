@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Generated outputs
+assets/
+final_output/
+weatherdata/
