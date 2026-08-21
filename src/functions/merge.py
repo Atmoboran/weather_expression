@@ -1,6 +1,7 @@
 from src.functions.video_funcs import read_station_data
 import subprocess
 import os
+import imageio_ffmpeg
 import pandas as pd
 
 #####################################################################################
@@ -19,7 +20,7 @@ def merge_video_audio(video_file, audio_file, output_file):
 
     # FFmpeg command to merge audio and video
     command = [
-        "ffmpeg",
+        imageio_ffmpeg.get_ffmpeg_exe(),
         "-i", video_file,
         "-i", audio_file,
         "-c:v", "copy",  # Copy video stream without re-encoding
