@@ -115,6 +115,7 @@ def download_station_data(station_id, output_path, type):
         "temp": f"{dwd_base_dir}air_temperature/" + type + f"/10minutenwerte_TU_{station_id}_" + suffix + ".zip",
         "precip": f"{dwd_base_dir}precipitation/" + type + f"/10minutenwerte_nieder_{station_id}_" + suffix + ".zip",
         "wind": f"{dwd_base_dir}wind/" + type + f"/10minutenwerte_wind_{station_id}_" + suffix + ".zip",
+        "solar": f"{dwd_base_dir}solar/" + type + f"/10minutenwerte_SOLAR_{station_id}_" + suffix + ".zip",
     }
     
     for data_type, url in data_sources.items():

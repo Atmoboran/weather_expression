@@ -46,6 +46,7 @@ FEED_COLUMNS = {
     'tu': ['MESS_DATUM', 'PP_10', 'TT_10'],   # pressure + temperature
     'ff': ['MESS_DATUM', 'FF_10'],            # wind speed
     'rr': ['MESS_DATUM', 'RWS_10'],           # precipitation
+    'sd': ['MESS_DATUM', 'GS_10'],            # global solar radiation
 }
 
 #####################################################################################
@@ -56,7 +57,7 @@ def find_product_file(weather_data_dir, station_id, infix, variable):
 
     Args:
         infix (str): 'now' for the current-day feed, 'min' for the recent feed.
-        variable (str): DWD variable code, one of 'tu', 'ff', 'rr'.
+        variable (str): DWD variable code, one of 'tu', 'ff', 'rr', 'sd'.
     """
     pattern = f"produkt_zehn_{infix}_{variable}_*_{station_id}.txt"
     matches = sorted(weather_data_dir.glob(pattern))

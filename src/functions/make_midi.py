@@ -34,9 +34,9 @@ def produce_midi_file(data, bpm, vel_min, vel_max, instruments):
 
     print("Generating MIDI file...")
     
-    # Initialize MIDI File with 5 tracks
-    midi = MIDIFile(5)
-    track_names = ["Main Melody", "Bass", "Harmony", "Drums", "Rain Sounds"]
+    # Initialize MIDI File with 6 tracks
+    midi = MIDIFile(6)
+    track_names = ["Main Melody", "Bass", "Harmony", "Drums", "Rain Sounds", "Sun"]
     
     for i, name in enumerate(track_names):
         midi.addTrackName(i, 0, name)
@@ -62,6 +62,10 @@ def produce_midi_file(data, bpm, vel_min, vel_max, instruments):
     pressure_series = data['PP_10'].where(data['PP_10'] >= 100, 900)
     pressure_gradients = pressure_series.diff().fillna(0).to_numpy()
 
+    # Normalises solar radiation against this run's own peak, since a "bright" reading
+    # varies hugely by season and time of day.
+    max_solar = data['GS_10'].max()
+
     max_wind_speed = 15   # this is the wind speed with the highest volume
     chord_pattern = ["I", "IV", "V", "IV"]  # Chord progression pattern
 
@@ -82,6 +86,7 @@ def produce_midi_file(data, bpm, vel_min, vel_max, instruments):
         wind_speed = abs(row['FF_10']) if abs(row['FF_10']) <= max_wind_speed else max_wind_speed 
         pressure = row['PP_10'] if row['PP_10'] >= 100 else 900
         rain = max(min(row['RWS_10'], 5), 0)
+        solar = max(row['GS_10'], 0)
 
         pressure_gradient = pressure_gradients[idx]
 
@@ -145,6 +150,17 @@ def produce_midi_file(data, bpm, vel_min, vel_max, instruments):
         if rain > 0:
             rain_volume = round(map_value(rain, 0, 5, vel_min, vel_max))
             midi.addNote(4, 4, clamp_pitch(midi_data), start_time, duration, rain_volume)
+
+        # Add sun sounds to track 5 (solar radiation)
+        # Ignored below a small threshold so night/heavily overcast rows stay silent.
+        # Both velocity and pitch scale with intensity (brighter sun -> higher, louder
+        # note, up to an octave above the melody) so it reads clearly against the other
+        # five tracks.
+        if max_solar > 0 and solar > 1:
+            solar_norm = map_value(solar, 0, max_solar, 0, 1)
+            sun_velocity = round(map_value(solar_norm, 0, 1, vel_min, vel_max))
+            sun_pitch = clamp_pitch(midi_data + round(map_value(solar_norm, 0, 1, 0, 12)))
+            midi.addNote(5, 5, sun_pitch, start_time, duration, sun_velocity)
 
         start_time += duration
     
